@@ -7,9 +7,10 @@ import { Badge, statusBadge, priorityBadge } from "@/components/ui/badge";
 import { fmtDate, fmtCLP, daysUntil, docTypeLabel, woTypeLabel } from "@/lib/utils";
 import {
   ChevronLeft, Truck, User, Gauge, Fuel, Wrench, FileText,
-  AlertTriangle, Phone, Hash, Calendar
+  AlertTriangle, Phone, Hash, Clock
 } from "lucide-react";
 import Link from "next/link";
+import DeleteTruckButton from "./DeleteTruckButton";
 
 interface PageProps {
   params: { id: string };
@@ -18,6 +19,7 @@ interface PageProps {
 export default async function TruckDetailPage({ params }: PageProps) {
   const session = await getServerSession(authOptions);
   const orgId = (session?.user as any)?.orgId;
+  const role = (session?.user as any)?.role;
 
   const truck = await prisma.truck.findFirst({
     where: { id: params.id, orgId },
@@ -36,9 +38,18 @@ export default async function TruckDetailPage({ params }: PageProps) {
 
   if (!truck) notFound();
 
-  const pmProgress = truck.nextPmKm > 0
-    ? Math.min(100, Math.round(((truck.currentKm - truck.lastPmKm) / (truck.nextPmKm - truck.lastPmKm)) * 100))
-    : 0;
+  const isIndustrial = truck.fleetType === "INDUSTRIAL";
+
+  let pmProgress = 0;
+  if (isIndustrial) {
+    pmProgress = truck.nextPmHours > 0
+      ? Math.min(100, Math.round(((truck.currentHours - truck.lastPmHours) / (truck.nextPmHours - truck.lastPmHours)) * 100))
+      : 0;
+  } else {
+    pmProgress = truck.nextPmKm > 0
+      ? Math.min(100, Math.round(((truck.currentKm - truck.lastPmKm) / (truck.nextPmKm - truck.lastPmKm)) * 100))
+      : 0;
+  }
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -51,10 +62,15 @@ export default async function TruckDetailPage({ params }: PageProps) {
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold text-slate-800">{truck.plate}</h1>
             {statusBadge(truck.status)}
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+              isIndustrial ? "bg-orange-100 text-orange-700" : "bg-teal-100 text-teal-700"
+            }`}>
+              {isIndustrial ? "Industrial" : "Particular"}
+            </span>
           </div>
           <p className="text-slate-500">{truck.brand} {truck.model} · {truck.year} · ID: {truck.internalId}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-end">
           <Link
             href={`/maintenance/new?truckId=${truck.id}`}
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
@@ -62,44 +78,87 @@ export default async function TruckDetailPage({ params }: PageProps) {
             <Wrench className="h-4 w-4" />
             Nueva OT
           </Link>
+          {role === "ADMIN" && (
+            <DeleteTruckButton truckId={truck.id} plate={truck.plate} />
+          )}
         </div>
       </div>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="py-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Gauge className="h-4 w-4 text-blue-500" />
-              <span className="text-xs text-slate-500">Kilometraje Actual</span>
-            </div>
-            <p className="text-xl font-bold text-slate-800">{truck.currentKm.toLocaleString("es-CL")} km</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Wrench className="h-4 w-4 text-amber-500" />
-              <span className="text-xs text-slate-500">Próximo PM</span>
-            </div>
-            <p className="text-xl font-bold text-slate-800">{truck.nextPmKm.toLocaleString("es-CL")} km</p>
-            <div className="h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
-              <div
-                className={`h-full rounded-full ${pmProgress >= 90 ? "bg-red-500" : pmProgress >= 70 ? "bg-amber-500" : "bg-green-500"}`}
-                style={{ width: `${pmProgress}%` }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Fuel className="h-4 w-4 text-green-500" />
-              <span className="text-xs text-slate-500">Consumo Est.</span>
-            </div>
-            <p className="text-xl font-bold text-slate-800">{truck.fuelEst} km/l</p>
-          </CardContent>
-        </Card>
+        {isIndustrial ? (
+          <>
+            <Card>
+              <CardContent className="py-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="h-4 w-4 text-blue-500" />
+                  <span className="text-xs text-slate-500">Horas Motor</span>
+                </div>
+                <p className="text-xl font-bold text-slate-800">{truck.currentHours.toLocaleString("es-CL")} h</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="py-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Wrench className="h-4 w-4 text-amber-500" />
+                  <span className="text-xs text-slate-500">Próximo PM</span>
+                </div>
+                <p className="text-xl font-bold text-slate-800">{truck.nextPmHours.toLocaleString("es-CL")} h</p>
+                <div className="h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${pmProgress >= 90 ? "bg-red-500" : pmProgress >= 70 ? "bg-amber-500" : "bg-green-500"}`}
+                    style={{ width: `${Math.max(0, pmProgress)}%` }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="py-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="h-4 w-4 text-slate-400" />
+                  <span className="text-xs text-slate-500">Último PM</span>
+                </div>
+                <p className="text-xl font-bold text-slate-800">{truck.lastPmHours.toLocaleString("es-CL")} h</p>
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          <>
+            <Card>
+              <CardContent className="py-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Gauge className="h-4 w-4 text-blue-500" />
+                  <span className="text-xs text-slate-500">Kilometraje Actual</span>
+                </div>
+                <p className="text-xl font-bold text-slate-800">{truck.currentKm.toLocaleString("es-CL")} km</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="py-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Wrench className="h-4 w-4 text-amber-500" />
+                  <span className="text-xs text-slate-500">Próximo PM</span>
+                </div>
+                <p className="text-xl font-bold text-slate-800">{truck.nextPmKm.toLocaleString("es-CL")} km</p>
+                <div className="h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${pmProgress >= 90 ? "bg-red-500" : pmProgress >= 70 ? "bg-amber-500" : "bg-green-500"}`}
+                    style={{ width: `${Math.max(0, pmProgress)}%` }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="py-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Fuel className="h-4 w-4 text-green-500" />
+                  <span className="text-xs text-slate-500">Consumo Est.</span>
+                </div>
+                <p className="text-xl font-bold text-slate-800">{truck.fuelEst} km/l</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
         <Card>
           <CardContent className="py-4">
             <div className="flex items-center gap-2 mb-1">
@@ -120,12 +179,17 @@ export default async function TruckDetailPage({ params }: PageProps) {
             <InfoRow label="Marca" value={truck.brand} />
             <InfoRow label="Modelo" value={truck.model} />
             <InfoRow label="Año" value={truck.year.toString()} />
+            <InfoRow label="Tipo de Flota" value={isIndustrial ? "Industrial (horas)" : "Particular (km)"} />
             {truck.vin && <InfoRow label="VIN/Chasis" value={truck.vin} />}
             {truck.engine && <InfoRow label="Motor" value={truck.engine} />}
             {truck.tireSize && <InfoRow label="Neumáticos" value={truck.tireSize} />}
             {truck.maxWeight && <InfoRow label="Peso Máx." value={truck.maxWeight} />}
             {truck.color && <InfoRow label="Color" value={truck.color} />}
-            <InfoRow label="Intervalo PM" value={`${truck.pmInterval.toLocaleString("es-CL")} km`} />
+            {isIndustrial ? (
+              <InfoRow label="Intervalo PM" value={`${truck.pmIntervalHours.toLocaleString("es-CL")} h`} />
+            ) : (
+              <InfoRow label="Intervalo PM" value={`${truck.pmInterval.toLocaleString("es-CL")} km`} />
+            )}
           </CardContent>
         </Card>
 
@@ -256,7 +320,12 @@ export default async function TruckDetailPage({ params }: PageProps) {
                   <Fuel className="h-4 w-4 text-slate-400 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-800">{log.liters.toLocaleString("es-CL")} L · {fmtCLP(log.pricePerLiter)}/L</p>
-                    <p className="text-xs text-slate-500">{log.kmAtLoad.toLocaleString("es-CL")} km · {log.location || "Sin ubicación"}</p>
+                    <p className="text-xs text-slate-500">
+                      {isIndustrial && log.engineHours
+                        ? `${log.engineHours.toLocaleString("es-CL")} h`
+                        : `${log.kmAtLoad.toLocaleString("es-CL")} km`}
+                      {" · "}{log.location || "Sin ubicación"}
+                    </p>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-xs text-slate-500">{fmtDate(log.date)}</p>

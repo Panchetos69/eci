@@ -105,13 +105,6 @@ export async function GET(req: NextRequest) {
     }
 
     // 3. Check inventory below minStock
-    const lowStockItems = await prisma.inventoryItem.findMany({
-      where: {
-        stock: { lte: prisma.inventoryItem.fields.minStock },
-      },
-    });
-
-    // Fallback: raw query approach
     const allItems = await prisma.inventoryItem.findMany();
     for (const item of allItems) {
       if (item.stock <= item.minStock) {

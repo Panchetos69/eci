@@ -11,6 +11,7 @@ export default function NewTruckPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fleetType, setFleetType] = useState<"INDUSTRIAL" | "PARTICULAR">("INDUSTRIAL");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -19,16 +20,27 @@ export default function NewTruckPage() {
     const form = new FormData(e.currentTarget);
     const data = Object.fromEntries(form.entries());
 
+    const body: any = {
+      ...data,
+      year: parseInt(data.year as string),
+      currentKm: parseInt(data.currentKm as string) || 0,
+      pmInterval: parseInt(data.pmInterval as string) || 10000,
+      fuelEst: parseFloat(data.fuelEst as string) || 30,
+      fleetType,
+    };
+
+    if (fleetType === "INDUSTRIAL") {
+      body.currentHours = parseFloat(data.currentHours as string) || 0;
+      body.pmIntervalHours = parseFloat(data.pmIntervalHours as string) || 500;
+      body.nextPmHours = (parseFloat(data.currentHours as string) || 0) + (parseFloat(data.pmIntervalHours as string) || 500);
+    } else {
+      body.nextPmKm = (parseInt(data.currentKm as string) || 0) + (parseInt(data.pmInterval as string) || 10000);
+    }
+
     const res = await fetch("/api/trucks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...data,
-        year: parseInt(data.year as string),
-        currentKm: parseInt(data.currentKm as string) || 0,
-        pmInterval: parseInt(data.pmInterval as string) || 10000,
-        fuelEst: parseFloat(data.fuelEst as string) || 30,
-      }),
+      body: JSON.stringify(body),
     });
 
     setLoading(false);
@@ -74,18 +86,99 @@ export default function NewTruckPage() {
           </CardContent>
         </Card>
 
-        {/* Estado y KM */}
+        {/* Tipo de Flota */}
         <Card>
-          <CardHeader><CardTitle>Estado y Kilometraje</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Tipo de Flota</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setFleetType("INDUSTRIAL")}
+                className={`p-4 rounded-xl border-2 text-left transition-colors ${
+                  fleetType === "INDUSTRIAL"
+                    ? "border-orange-500 bg-orange-50"
+                    : "border-slate-200 bg-white hover:border-orange-300"
+                }`}
+              >
+                <p className="font-bold text-slate-800">Industrial</p>
+                <p className="text-xs text-slate-500 mt-1">Camiones pluma, maquinaria pesada</p>
+                <p className="text-xs text-orange-600 font-medium mt-1">Mantención por horas motor</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFleetType("PARTICULAR")}
+                className={`p-4 rounded-xl border-2 text-left transition-colors ${
+                  fleetType === "PARTICULAR"
+                    ? "border-teal-500 bg-teal-50"
+                    : "border-slate-200 bg-white hover:border-teal-300"
+                }`}
+              >
+                <p className="font-bold text-slate-800">Particular</p>
+                <p className="text-xs text-slate-500 mt-1">Camionetas, vehículos livianos</p>
+                <p className="text-xs text-teal-600 font-medium mt-1">Mantención por kilometraje</p>
+              </button>
+            </div>
+
+            {/* Industrial fields */}
+            {fleetType === "INDUSTRIAL" && (
+              <div className="grid sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                <Input
+                  name="currentHours"
+                  label="Horas Motor Actuales"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  placeholder="0"
+                />
+                <Input
+                  name="pmIntervalHours"
+                  label="Intervalo PM (horas)"
+                  type="number"
+                  step="1"
+                  min="1"
+                  placeholder="500"
+                />
+                <Select name="status" label="Estado">
+                  <option value="ACTIVE">Activo</option>
+                  <option value="MAINTENANCE">Mantención</option>
+                  <option value="INACTIVE">Inactivo</option>
+                </Select>
+                <Input name="fuelEst" label="Consumo Estimado (L/h)" type="number" step="0.1" placeholder="20" />
+              </div>
+            )}
+
+            {/* Particular fields */}
+            {fleetType === "PARTICULAR" && (
+              <div className="grid sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                <Input
+                  name="currentKm"
+                  label="Kilometraje Actual *"
+                  type="number"
+                  placeholder="0"
+                  min="0"
+                  required
+                />
+                <Input
+                  name="pmInterval"
+                  label="Intervalo PM (km)"
+                  type="number"
+                  placeholder="10000"
+                />
+                <Select name="status" label="Estado">
+                  <option value="ACTIVE">Activo</option>
+                  <option value="MAINTENANCE">Mantención</option>
+                  <option value="INACTIVE">Inactivo</option>
+                </Select>
+                <Input name="fuelEst" label="Consumo Estimado (km/l)" type="number" step="0.1" placeholder="30" />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Specs */}
+        <Card>
+          <CardHeader><CardTitle>Especificaciones</CardTitle></CardHeader>
           <CardContent className="grid sm:grid-cols-2 gap-4">
-            <Select name="status" label="Estado">
-              <option value="ACTIVE">Activo</option>
-              <option value="MAINTENANCE">Mantención</option>
-              <option value="INACTIVE">Inactivo</option>
-            </Select>
-            <Input name="currentKm" label="Kilometraje Actual *" type="number" placeholder="0" min="0" required />
-            <Input name="pmInterval" label="Intervalo PM (km)" type="number" placeholder="10000" />
-            <Input name="fuelEst" label="Consumo Estimado (km/l)" type="number" step="0.1" placeholder="30" />
             <Input name="tireSize" label="Medida Neumáticos" placeholder="Ej: 295/80 R22.5" />
             <Input name="maxWeight" label="Peso Máximo (ton)" placeholder="Ej: 45" />
           </CardContent>

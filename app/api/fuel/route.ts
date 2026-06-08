@@ -29,19 +29,30 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { truckId, date, liters, pricePerLiter, kmAtLoad, fuelType, location, driverName, notes, hoursWorked, totalCost } = body;
+    const { truckId, date, liters, pricePerLiter, kmAtLoad, engineHours, fuelType, location, driverName, notes, hoursWorked, totalCost } = body;
 
-    if (!truckId || !date || !liters || !pricePerLiter || !kmAtLoad) {
+    if (!truckId || !date || !liters || !pricePerLiter) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 });
     }
+
+    const truck = await prisma.truck.findFirst({ where: { id: truckId, orgId } });
+    if (!truck) return NextResponse.json({ error: "Camión no encontrado" }, { status: 404 });
 
     // Get last fuel log to calculate km since last load
     const lastLog = await prisma.fuelLog.findFirst({
       where: { truckId },
       orderBy: { date: "desc" },
     });
-    const kmSinceLastLoad = lastLog ? kmAtLoad - lastLog.kmAtLoad : null;
-    const consumptionCalc = kmSinceLastLoad && kmSinceLastLoad > 0 ? kmSinceLastLoad / liters : null;
+
+    let kmSinceLastLoad: number | null = null;
+    let consumptionCalc: number | null = null;
+
+    if (kmAtLoad && lastLog?.kmAtLoad) {
+      kmSinceLastLoad = parseInt(kmAtLoad) - lastLog.kmAtLoad;
+      if (kmSinceLastLoad > 0) {
+        consumptionCalc = kmSinceLastLoad / parseFloat(liters);
+      }
+    }
 
     const log = await prisma.fuelLog.create({
       data: {
@@ -50,9 +61,10 @@ export async function POST(req: NextRequest) {
         date: new Date(date),
         liters: parseFloat(liters),
         pricePerLiter: parseFloat(pricePerLiter),
-        kmAtLoad: parseInt(kmAtLoad),
+        kmAtLoad: kmAtLoad ? parseInt(kmAtLoad) : 0,
         kmSinceLastLoad,
         consumptionCalc,
+        engineHours: engineHours ? parseFloat(engineHours) : null,
         hoursWorked: hoursWorked ? parseFloat(hoursWorked) : null,
         driverName: driverName || null,
         location: location || null,
@@ -63,11 +75,15 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Update truck current km if higher
-    await prisma.truck.updateMany({
-      where: { id: truckId, currentKm: { lt: parseInt(kmAtLoad) } },
-      data: { currentKm: parseInt(kmAtLoad) },
-    });
+    // Update truck currentKm if provided and higher
+    if (kmAtLoad && parseInt(kmAtLoad) > truck.currentKm) {
+      await prisma.truck.update({ where: { id: truckId }, data: { currentKm: parseInt(kmAtLoad) } });
+    }
+
+    // Update truck currentHours if provided and higher
+    if (engineHours && parseFloat(engineHours) > truck.currentHours) {
+      await prisma.truck.update({ where: { id: truckId }, data: { currentHours: parseFloat(engineHours) } });
+    }
 
     return NextResponse.json({ log }, { status: 201 });
   } catch (err) {

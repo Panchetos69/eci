@@ -13,11 +13,14 @@ interface Truck {
   brand: string;
   model: string;
   currentKm: number;
+  currentHours: number;
+  fleetType: "INDUSTRIAL" | "PARTICULAR";
 }
 
 export default function NewFuelLogPage() {
   const router = useRouter();
   const [trucks, setTrucks] = useState<Truck[]>([]);
+  const [selectedTruck, setSelectedTruck] = useState<Truck | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [liters, setLiters] = useState("");
@@ -29,6 +32,11 @@ export default function NewFuelLogPage() {
 
   const totalCost = liters && price ? (parseFloat(liters) * parseFloat(price)).toLocaleString("es-CL") : "—";
 
+  function handleTruckChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const t = trucks.find((t) => t.id === e.target.value) || null;
+    setSelectedTruck(t);
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -36,16 +44,20 @@ export default function NewFuelLogPage() {
     const form = new FormData(e.currentTarget);
     const data = Object.fromEntries(form.entries());
 
+    const body: any = {
+      ...data,
+      liters: parseFloat(data.liters as string),
+      pricePerLiter: parseFloat(data.pricePerLiter as string),
+      totalCost: parseFloat(data.liters as string) * parseFloat(data.pricePerLiter as string),
+    };
+
+    if (data.kmAtLoad) body.kmAtLoad = parseInt(data.kmAtLoad as string);
+    if (data.engineHours) body.engineHours = parseFloat(data.engineHours as string);
+
     const res = await fetch("/api/fuel", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...data,
-        liters: parseFloat(data.liters as string),
-        pricePerLiter: parseFloat(data.pricePerLiter as string),
-        kmAtLoad: parseInt(data.kmAtLoad as string),
-        totalCost: parseFloat(data.liters as string) * parseFloat(data.pricePerLiter as string),
-      }),
+      body: JSON.stringify(body),
     });
 
     setLoading(false);
@@ -56,6 +68,8 @@ export default function NewFuelLogPage() {
       router.push("/fuel");
     }
   }
+
+  const isIndustrial = selectedTruck?.fleetType === "INDUSTRIAL";
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -77,13 +91,23 @@ export default function NewFuelLogPage() {
           <CardContent className="grid sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">Camión *</label>
-              <select name="truckId" required
+              <select name="truckId" required onChange={handleTruckChange}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">Selecciona un camión...</option>
                 {trucks.map((t) => (
-                  <option key={t.id} value={t.id}>{t.plate} - {t.brand} {t.model} ({t.currentKm.toLocaleString("es-CL")} km)</option>
+                  <option key={t.id} value={t.id}>
+                    {t.plate} - {t.brand} {t.model}
+                    {t.fleetType === "INDUSTRIAL"
+                      ? ` (${t.currentHours.toLocaleString("es-CL")} h)`
+                      : ` (${t.currentKm.toLocaleString("es-CL")} km)`}
+                  </option>
                 ))}
               </select>
+              {selectedTruck && (
+                <p className={`text-xs mt-1 font-medium ${isIndustrial ? "text-orange-600" : "text-teal-600"}`}>
+                  Tipo: {isIndustrial ? "Industrial — requiere horas motor" : "Particular — requiere kilometraje"}
+                </p>
+              )}
             </div>
             <Input name="date" label="Fecha y Hora *" type="datetime-local"
               defaultValue={new Date().toISOString().slice(0, 16)} required />
@@ -98,10 +122,35 @@ export default function NewFuelLogPage() {
               placeholder="0" required value={liters} onChange={(e) => setLiters(e.target.value)} />
             <Input name="pricePerLiter" label="Precio por Litro (CLP) *" type="number" step="1" min="0"
               placeholder="1100" required value={price} onChange={(e) => setPrice(e.target.value)} />
-            <Input name="kmAtLoad" label="Kilometraje al Cargar *" type="number" min="0" placeholder="0" required />
+
+            {/* Conditional field: KM or Hours */}
+            {(!selectedTruck || !isIndustrial) && (
+              <Input
+                name="kmAtLoad"
+                label={`Kilometraje al Cargar${!selectedTruck || !isIndustrial ? " *" : ""}`}
+                type="number"
+                min="0"
+                placeholder={selectedTruck?.currentKm?.toString() || "0"}
+                required={!isIndustrial}
+              />
+            )}
+            {isIndustrial && (
+              <Input
+                name="engineHours"
+                label="Horas Motor al Cargar *"
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder={selectedTruck?.currentHours?.toString() || "0"}
+                required
+              />
+            )}
+
             <Input name="location" label="Ubicación / Grifo" placeholder="Ej: COPEC Ruta 5, Santiago" />
             <Input name="driverName" label="Nombre del Conductor" placeholder="Nombre del conductor" />
-            <Input name="hoursWorked" label="Horas Trabajadas" type="number" step="0.5" placeholder="0" />
+            {!isIndustrial && (
+              <Input name="hoursWorked" label="Horas Trabajadas" type="number" step="0.5" placeholder="0" />
+            )}
 
             {/* Total cost display */}
             <div className="sm:col-span-2 bg-blue-50 rounded-lg px-4 py-3">

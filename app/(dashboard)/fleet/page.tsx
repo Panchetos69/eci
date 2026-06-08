@@ -4,11 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge, statusBadge } from "@/components/ui/badge";
 import { fmtDate } from "@/lib/utils";
-import { Truck, Plus, ChevronRight, Gauge, User, AlertTriangle } from "lucide-react";
+import { Truck, Plus, ChevronRight, Gauge, User, AlertTriangle, Clock } from "lucide-react";
 import Link from "next/link";
 
 interface PageProps {
-  searchParams: { status?: string; q?: string };
+  searchParams: { status?: string; q?: string; fleetType?: string };
 }
 
 export default async function FleetPage({ searchParams }: PageProps) {
@@ -17,6 +17,7 @@ export default async function FleetPage({ searchParams }: PageProps) {
 
   const where: any = { orgId };
   if (searchParams.status) where.status = searchParams.status;
+  if (searchParams.fleetType) where.fleetType = searchParams.fleetType;
   if (searchParams.q) {
     where.OR = [
       { plate: { contains: searchParams.q, mode: "insensitive" } },
@@ -43,6 +44,11 @@ export default async function FleetPage({ searchParams }: PageProps) {
   });
   const countMap = Object.fromEntries(counts.map((c) => [c.status, c._count]));
 
+  // Fleet type counts
+  const industrialCount = await prisma.truck.count({ where: { orgId, fleetType: "INDUSTRIAL" } });
+  const particularCount = await prisma.truck.count({ where: { orgId, fleetType: "PARTICULAR" } });
+  const totalCount = await prisma.truck.count({ where: { orgId } });
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -60,13 +66,25 @@ export default async function FleetPage({ searchParams }: PageProps) {
         </Link>
       </div>
 
-      {/* Filters */}
+      {/* Fleet type tabs */}
+      <div className="flex gap-2">
+        <FleetTypeLink href="/fleet" label="Todos" count={totalCount} active={!searchParams.fleetType} />
+        <FleetTypeLink href="/fleet?fleetType=INDUSTRIAL" label="Industrial" count={industrialCount} active={searchParams.fleetType === "INDUSTRIAL"} />
+        <FleetTypeLink href="/fleet?fleetType=PARTICULAR" label="Particular" count={particularCount} active={searchParams.fleetType === "PARTICULAR"} />
+      </div>
+
+      {/* Status Filters */}
       <div className="flex flex-wrap gap-2">
-        <FilterLink href="/fleet" label="Todos" count={trucks.length + (searchParams.status ? 0 : 0)} active={!searchParams.status} />
+        <FilterLink
+          href={searchParams.fleetType ? `/fleet?fleetType=${searchParams.fleetType}` : "/fleet"}
+          label="Todos estados"
+          count={trucks.length}
+          active={!searchParams.status}
+        />
         {statuses.map((s) => (
           <FilterLink
             key={s}
-            href={`/fleet?status=${s}`}
+            href={`/fleet?status=${s}${searchParams.fleetType ? `&fleetType=${searchParams.fleetType}` : ""}`}
             label={statusLabel(s)}
             count={countMap[s] || 0}
             active={searchParams.status === s}
@@ -77,6 +95,7 @@ export default async function FleetPage({ searchParams }: PageProps) {
       {/* Search */}
       <form method="GET">
         {searchParams.status && <input type="hidden" name="status" value={searchParams.status} />}
+        {searchParams.fleetType && <input type="hidden" name="fleetType" value={searchParams.fleetType} />}
         <input
           name="q"
           defaultValue={searchParams.q}
@@ -95,10 +114,23 @@ export default async function FleetPage({ searchParams }: PageProps) {
       ) : (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {trucks.map((truck) => {
-            const pmProgress = truck.nextPmKm > 0
-              ? Math.min(100, Math.round(((truck.currentKm - truck.lastPmKm) / (truck.nextPmKm - truck.lastPmKm)) * 100))
-              : 0;
-            const pmUrgent = truck.currentKm >= truck.nextPmKm * 0.95;
+            const isIndustrial = truck.fleetType === "INDUSTRIAL";
+
+            let pmProgress = 0;
+            let pmUrgent = false;
+
+            if (isIndustrial) {
+              pmProgress = truck.nextPmHours > 0
+                ? Math.min(100, Math.round(((truck.currentHours - truck.lastPmHours) / (truck.nextPmHours - truck.lastPmHours)) * 100))
+                : 0;
+              pmUrgent = truck.nextPmHours > 0 && (truck.nextPmHours - truck.currentHours) <= 20;
+            } else {
+              pmProgress = truck.nextPmKm > 0
+                ? Math.min(100, Math.round(((truck.currentKm - truck.lastPmKm) / (truck.nextPmKm - truck.lastPmKm)) * 100))
+                : 0;
+              pmUrgent = truck.currentKm >= truck.nextPmKm * 0.95;
+            }
+
             return (
               <Link key={truck.id} href={`/fleet/${truck.id}`}>
                 <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
@@ -109,27 +141,51 @@ export default async function FleetPage({ searchParams }: PageProps) {
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">{truck.internalId}</span>
                           {statusBadge(truck.status)}
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                            isIndustrial ? "bg-orange-100 text-orange-700" : "bg-teal-100 text-teal-700"
+                          }`}>
+                            {isIndustrial ? "Industrial" : "Particular"}
+                          </span>
                         </div>
                         <h3 className="font-bold text-slate-800 text-lg">{truck.plate}</h3>
                         <p className="text-sm text-slate-500">{truck.brand} {truck.model} {truck.year}</p>
                       </div>
                       <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                        <Truck className="h-5 w-5 text-blue-600" />
+                        {isIndustrial ? (
+                          <Clock className="h-5 w-5 text-blue-600" />
+                        ) : (
+                          <Truck className="h-5 w-5 text-blue-600" />
+                        )}
                       </div>
                     </div>
 
-                    {/* KM */}
+                    {/* Metric (KM or Hours) */}
                     <div className="mb-3">
                       <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="text-slate-500 flex items-center gap-1"><Gauge className="h-3 w-3" /> {truck.currentKm.toLocaleString("es-CL")} km</span>
-                        <span className={`${pmUrgent ? "text-red-600 font-semibold" : "text-slate-400"}`}>
-                          Próx. PM: {truck.nextPmKm.toLocaleString("es-CL")} km
-                        </span>
+                        {isIndustrial ? (
+                          <>
+                            <span className="text-slate-500 flex items-center gap-1">
+                              <Clock className="h-3 w-3" /> {truck.currentHours.toLocaleString("es-CL")} h
+                            </span>
+                            <span className={`${pmUrgent ? "text-red-600 font-semibold" : "text-slate-400"}`}>
+                              Próx. PM: {truck.nextPmHours.toLocaleString("es-CL")} h
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-slate-500 flex items-center gap-1">
+                              <Gauge className="h-3 w-3" /> {truck.currentKm.toLocaleString("es-CL")} km
+                            </span>
+                            <span className={`${pmUrgent ? "text-red-600 font-semibold" : "text-slate-400"}`}>
+                              Próx. PM: {truck.nextPmKm.toLocaleString("es-CL")} km
+                            </span>
+                          </>
+                        )}
                       </div>
                       <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full ${pmProgress >= 90 ? "bg-red-500" : pmProgress >= 70 ? "bg-amber-500" : "bg-green-500"}`}
-                          style={{ width: `${pmProgress}%` }}
+                          style={{ width: `${Math.max(0, pmProgress)}%` }}
                         />
                       </div>
                     </div>
@@ -190,6 +246,24 @@ function FilterLink({ href, label, count, active }: { href: string; label: strin
           {count}
         </span>
       )}
+    </Link>
+  );
+}
+
+function FleetTypeLink({ href, label, count, active }: { href: string; label: string; count: number; active: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
+        active
+          ? "bg-slate-800 text-white border-slate-800"
+          : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+      }`}
+    >
+      {label}
+      <span className={`rounded-full text-xs px-1.5 py-0.5 ${active ? "bg-white/20" : "bg-slate-100"}`}>
+        {count}
+      </span>
     </Link>
   );
 }

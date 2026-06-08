@@ -10,6 +10,7 @@ import {
   AlertCircle, Clock, FileText, ChevronRight
 } from "lucide-react";
 import Link from "next/link";
+import QuickActions from "./QuickActions";
 import { subMonths, format } from "date-fns";
 
 export default async function DashboardPage() {
@@ -128,12 +129,20 @@ export default async function DashboardPage() {
     INFO: AlertCircle,
   };
 
+  const unseenAlerts = recentAlerts.filter((a) => !a.seen).length;
+
   return (
     <div className="space-y-6">
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
         <p className="text-sm text-slate-500">Resumen del estado de la flota</p>
+      </div>
+
+      {/* Quick Actions */}
+      <div>
+        <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wider mb-3">Acciones rápidas</h2>
+        <QuickActions alertCount={unseenAlerts} />
       </div>
 
       {/* KPI Cards */}
