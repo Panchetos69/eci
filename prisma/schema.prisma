@@ -7,6 +7,95 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── ENUMS ───────────────────────────────────────
+
+enum Plan {
+  STARTER
+  GROWTH
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum Role {
+  ADMIN
+  SUPERVISOR
+  MECHANIC
+}
+
+enum TruckStatus {
+  ACTIVE
+  MAINTENANCE
+  ALERT
+  CRITICAL
+  INACTIVE
+}
+
+enum DocType {
+  SOAP
+  RVT
+  PERMISO_CIRCULACION
+  SEGURO_RC
+  TAG
+  OTRO
+}
+
+enum WOType {
+  PREVENTIVO
+  CORRECTIVO
+  EMERGENCIA
+  REVISION
+}
+
+enum WOStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+enum MoveType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+enum FaultSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FaultStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum AlertType {
+  PM_DUE
+  DOCUMENT_EXPIRY
+  LOW_STOCK
+  HIGH_FUEL
+  FAULT_REPORTED
+  SYSTEM
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+// ─── MODELOS ─────────────────────────────────────
+
 model Organization {
   id        String   @id @default(cuid())
   name      String
@@ -15,15 +104,15 @@ model Organization {
   logoUrl   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  users      User[]
-  trucks     Truck[]
-  inventory  InventoryItem[]
-  alerts     Alert[]
-  suppliers  Supplier[]
+
+  users     User[]
+  trucks    Truck[]
+  inventory InventoryItem[]
+  alerts    Alert[]
+  suppliers Supplier[]
+
   @@map("organizations")
 }
-
-enum Plan { STARTER GROWTH PROFESSIONAL ENTERPRISE }
 
 model User {
   id             String   @id @default(cuid())
@@ -37,79 +126,79 @@ model User {
   active         Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  organization   Organization @relation(fields: [orgId], references: [id])
-  workOrders     WorkOrder[]  @relation("AssignedMechanic")
+
+  organization   Organization    @relation(fields: [orgId], references: [id])
+  workOrders     WorkOrder[]     @relation("AssignedMechanic")
   fuelLogs       FuelLog[]
   faultReports   FaultReport[]
   checklistItems ChecklistItem[]
+
   @@map("users")
 }
 
-enum Role { ADMIN SUPERVISOR MECHANIC }
-
 model Truck {
-  id           String      @id @default(cuid())
-  internalId   String
-  plate        String
-  brand        String
-  model        String
-  year         Int
-  vin          String?
-  engine       String?
-  tireSize     String?
-  maxWeight    String?
-  color        String?
-  status       TruckStatus @default(ACTIVE)
-  notes        String?
-  currentKm    Int         @default(0)
-  lastPmKm     Int         @default(0)
-  nextPmKm     Int         @default(0)
-  pmInterval   Int         @default(10000)
-  monthlyKm    Int         @default(0)
-  fuelEst      Float       @default(30)
-  driverName   String?
-  driverRut    String?
+  id            String      @id @default(cuid())
+  internalId    String
+  plate         String
+  brand         String
+  model         String
+  year          Int
+  vin           String?
+  engine        String?
+  tireSize      String?
+  maxWeight     String?
+  color         String?
+  status        TruckStatus @default(ACTIVE)
+  notes         String?
+  currentKm     Int         @default(0)
+  lastPmKm      Int         @default(0)
+  nextPmKm      Int         @default(0)
+  pmInterval    Int         @default(10000)
+  monthlyKm     Int         @default(0)
+  fuelEst       Float       @default(30)
+  driverName    String?
+  driverRut     String?
   driverLicense String?
-  driverPhone  String?
-  orgId        String
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  organization  Organization  @relation(fields: [orgId], references: [id])
-  documents     TruckDocument[]
-  workOrders    WorkOrder[]
-  fuelLogs      FuelLog[]
-  faultReports  FaultReport[]
-  alerts        Alert[]
+  driverPhone   String?
+  orgId         String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  organization Organization    @relation(fields: [orgId], references: [id])
+  documents    TruckDocument[]
+  workOrders   WorkOrder[]
+  fuelLogs     FuelLog[]
+  faultReports FaultReport[]
+  alerts       Alert[]
+
   @@unique([plate, orgId])
   @@map("trucks")
 }
 
-enum TruckStatus { ACTIVE MAINTENANCE ALERT CRITICAL INACTIVE }
-
 model TruckDocument {
-  id          String      @id @default(cuid())
-  truckId     String
-  type        DocType
-  expiresAt   DateTime
-  fileUrl     String?
-  folio       String?
-  notes       String?
-  isActive    Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  truck       Truck       @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  truckId   String
+  type      DocType
+  expiresAt DateTime
+  fileUrl   String?
+  folio     String?
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  truck Truck @relation(fields: [truckId], references: [id], onDelete: Cascade)
+
   @@map("truck_documents")
 }
 
-enum DocType { SOAP RVT PERMISO_CIRCULACION SEGURO_RC TAG OTRO }
-
 model WorkOrder {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   number       String
   truckId      String
   type         WOType
-  status       WOStatus @default(PENDING)
-  priority     Priority @default(NORMAL)
+  status       WOStatus  @default(PENDING)
+  priority     Priority  @default(NORMAL)
   mechanicId   String?
   description  String?
   kmAtCreate   Int
@@ -120,65 +209,69 @@ model WorkOrder {
   totalCost    Float?
   observations String?
   orgId        String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  truck        Truck          @relation(fields: [truckId], references: [id])
-  mechanic     User?          @relation("AssignedMechanic", fields: [mechanicId], references: [id])
-  checklist    ChecklistItem[]
-  parts        WorkOrderPart[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  truck     Truck           @relation(fields: [truckId], references: [id])
+  mechanic  User?           @relation("AssignedMechanic", fields: [mechanicId], references: [id])
+  checklist ChecklistItem[]
+  parts     WorkOrderPart[]
+
   @@map("work_orders")
 }
 
-enum WOType { PREVENTIVO CORRECTIVO EMERGENCIA REVISION }
-enum WOStatus { PENDING IN_PROGRESS COMPLETED CANCELLED }
-enum Priority { LOW NORMAL HIGH CRITICAL }
-
 model ChecklistItem {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   workOrderId String
   step        Int
   label       String
   description String?
-  done        Boolean  @default(false)
+  done        Boolean   @default(false)
   doneAt      DateTime?
   doneById    String?
   note        String?
   photoUrl    String?
-  createdAt   DateTime @default(now())
-  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
-  doneBy      User?     @relation(fields: [doneById], references: [id])
+  createdAt   DateTime  @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  doneBy    User?     @relation(fields: [doneById], references: [id])
+
   @@map("checklist_items")
 }
 
 model InventoryItem {
-  id          String   @id @default(cuid())
-  name        String
-  partNumber  String?
-  stock       Float    @default(0)
-  minStock    Float    @default(1)
-  unit        String   @default("unid")
-  costClp     Float    @default(0)
-  location    String?
-  supplierId  String?
-  notes       String?
-  orgId       String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  organization Organization @relation(fields: [orgId], references: [id])
-  supplier     Supplier?    @relation(fields: [supplierId], references: [id])
+  id         String   @id @default(cuid())
+  name       String
+  partNumber String?
+  stock      Float    @default(0)
+  minStock   Float    @default(1)
+  unit       String   @default("unid")
+  costClp    Float    @default(0)
+  location   String?
+  supplierId String?
+  notes      String?
+  orgId      String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  organization   Organization    @relation(fields: [orgId], references: [id])
+  supplier       Supplier?       @relation(fields: [supplierId], references: [id])
   workOrderParts WorkOrderPart[]
-  movements    StockMovement[]
+  movements      StockMovement[]
+
   @@map("inventory_items")
 }
 
 model WorkOrderPart {
-  id              String  @id @default(cuid())
+  id              String @id @default(cuid())
   workOrderId     String
   inventoryItemId String
   quantityUsed    Float
   unitCost        Float
-  workOrder       WorkOrder     @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
-  item            InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  workOrder WorkOrder     @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  item      InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
   @@map("work_order_parts")
 }
 
@@ -190,76 +283,76 @@ model StockMovement {
   reason      String?
   workOrderId String?
   createdAt   DateTime @default(now())
-  item        InventoryItem @relation(fields: [itemId], references: [id])
+
+  item InventoryItem @relation(fields: [itemId], references: [id])
+
   @@map("stock_movements")
 }
 
-enum MoveType { IN OUT ADJUSTMENT }
-
 model FuelLog {
-  id            String   @id @default(cuid())
-  truckId       String
-  userId        String?
-  date          DateTime
-  liters        Float
-  pricePerLiter Float
-  kmAtLoad      Int
+  id              String   @id @default(cuid())
+  truckId         String
+  userId          String?
+  date            DateTime
+  liters          Float
+  pricePerLiter   Float
+  kmAtLoad        Int
   kmSinceLastLoad Int?
   consumptionCalc Float?
-  hoursWorked   Float?
-  driverName    String?
-  location      String?
-  fuelType      String   @default("Diesel BS10")
-  totalCost     Float?
-  notes         String?
-  orgId         String
-  createdAt     DateTime @default(now())
-  truck         Truck  @relation(fields: [truckId], references: [id])
-  user          User?  @relation(fields: [userId], references: [id])
+  hoursWorked     Float?
+  driverName      String?
+  location        String?
+  fuelType        String   @default("Diesel BS10")
+  totalCost       Float?
+  notes           String?
+  orgId           String
+  createdAt       DateTime @default(now())
+
+  truck Truck @relation(fields: [truckId], references: [id])
+  user  User? @relation(fields: [userId], references: [id])
+
   @@map("fuel_logs")
 }
 
 model FaultReport {
-  id          String        @id @default(cuid())
-  truckId     String
+  id           String        @id @default(cuid())
+  truckId      String
   reportedById String?
-  component   String
-  faultType   String
-  severity    FaultSeverity @default(MEDIUM)
-  description String?
-  kmAtFault   Int?
-  photoUrl    String?
-  status      FaultStatus   @default(OPEN)
-  resolvedAt  DateTime?
-  orgId       String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  truck       Truck @relation(fields: [truckId], references: [id])
-  reporter    User? @relation(fields: [reportedById], references: [id])
+  component    String
+  faultType    String
+  severity     FaultSeverity @default(MEDIUM)
+  description  String?
+  kmAtFault    Int?
+  photoUrl     String?
+  status       FaultStatus   @default(OPEN)
+  resolvedAt   DateTime?
+  orgId        String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  truck    Truck @relation(fields: [truckId], references: [id])
+  reporter User? @relation(fields: [reportedById], references: [id])
+
   @@map("fault_reports")
 }
 
-enum FaultSeverity { LOW MEDIUM HIGH CRITICAL }
-enum FaultStatus { OPEN IN_PROGRESS RESOLVED }
-
 model Alert {
-  id        String      @id @default(cuid())
+  id        String        @id @default(cuid())
   type      AlertType
   severity  AlertSeverity
   title     String
   message   String
   truckId   String?
   orgId     String
-  seen      Boolean     @default(false)
+  seen      Boolean       @default(false)
   seenAt    DateTime?
-  createdAt DateTime    @default(now())
-  truck       Truck?       @relation(fields: [truckId], references: [id])
+  createdAt DateTime      @default(now())
+
+  truck        Truck?       @relation(fields: [truckId], references: [id])
   organization Organization @relation(fields: [orgId], references: [id])
+
   @@map("alerts")
 }
-
-enum AlertType { PM_DUE DOCUMENT_EXPIRY LOW_STOCK HIGH_FUEL FAULT_REPORTED SYSTEM }
-enum AlertSeverity { INFO WARNING CRITICAL }
 
 model Supplier {
   id        String   @id @default(cuid())
@@ -270,7 +363,9 @@ model Supplier {
   address   String?
   orgId     String
   createdAt DateTime @default(now())
+
   organization Organization    @relation(fields: [orgId], references: [id])
   items        InventoryItem[]
+
   @@map("suppliers")
 }
