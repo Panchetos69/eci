@@ -66,6 +66,11 @@ enum MoveType {
   ADJUSTMENT
 }
 
+enum FleetType {
+  INDUSTRIAL
+  PARTICULAR
+}
+
 enum FaultSeverity {
   LOW
   MEDIUM
@@ -97,13 +102,15 @@ enum AlertSeverity {
 // ─── MODELOS ─────────────────────────────────────
 
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  rut       String   @unique
-  plan      Plan     @default(STARTER)
-  logoUrl   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  rut              String   @unique
+  plan             Plan     @default(STARTER)
+  logoUrl          String?
+  telegramChatId   String?
+  whatsappNumber   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   users     User[]
   trucks    Truck[]
@@ -160,6 +167,11 @@ model Truck {
   driverRut     String?
   driverLicense String?
   driverPhone   String?
+  fleetType       FleetType   @default(INDUSTRIAL)
+  currentHours    Float       @default(0)
+  lastPmHours     Float       @default(0)
+  nextPmHours     Float       @default(0)
+  pmIntervalHours Float       @default(500)
   orgId         String
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -300,6 +312,7 @@ model FuelLog {
   kmSinceLastLoad Int?
   consumptionCalc Float?
   hoursWorked     Float?
+  engineHours     Float?
   driverName      String?
   location        String?
   fuelType        String   @default("Diesel BS10")
