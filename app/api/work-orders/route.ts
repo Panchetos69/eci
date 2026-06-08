@@ -40,8 +40,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { truckId, type, priority, status, mechanicId, description, kmAtCreate, scheduledAt, laborHours, totalCost, observations } = body;
 
-    if (!truckId || !type || !kmAtCreate) {
-      return NextResponse.json({ error: "Campos requeridos: truckId, type, kmAtCreate" }, { status: 400 });
+    if (!truckId || !type) {
+      return NextResponse.json({ error: "Campos requeridos: truckId, type" }, { status: 400 });
     }
 
     // Generate OT number

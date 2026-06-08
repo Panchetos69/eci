@@ -233,7 +233,7 @@ export default async function TruckDetailPage({ params }: PageProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Documentos</CardTitle>
-            <Link href="/documents" className="text-xs text-blue-600 hover:underline">Gestionar</Link>
+            <Link href={`/fleet/${truck.id}/documents`} className="text-xs text-blue-600 hover:underline">Gestionar documentos</Link>
           </div>
         </CardHeader>
         <CardContent className="p-0">

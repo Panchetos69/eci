@@ -12,6 +12,9 @@ interface Truck {
   plate: string;
   brand: string;
   model: string;
+  fleetType: "INDUSTRIAL" | "PARTICULAR";
+  currentKm: number;
+  currentHours: number;
 }
 
 interface User {
@@ -27,6 +30,7 @@ export default function NewWorkOrderPage() {
 
   const [trucks, setTrucks] = useState<Truck[]>([]);
   const [mechanics, setMechanics] = useState<User[]>([]);
+  const [selectedTruck, setSelectedTruck] = useState<Truck | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -48,7 +52,7 @@ export default function NewWorkOrderPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...data,
-        kmAtCreate: parseInt(data.kmAtCreate as string) || 0,
+        kmAtCreate: data.kmAtCreate ? parseInt(data.kmAtCreate as string) : 0,
         laborHours: data.laborHours ? parseFloat(data.laborHours as string) : null,
         totalCost: data.totalCost ? parseFloat(data.totalCost as string) : null,
         scheduledAt: data.scheduledAt || null,
@@ -86,12 +90,20 @@ export default function NewWorkOrderPage() {
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">Camión *</label>
               <select name="truckId" defaultValue={defaultTruckId} required
+                onChange={(e) => setSelectedTruck(trucks.find((t) => t.id === e.target.value) || null)}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">Selecciona un camión...</option>
                 {trucks.map((t) => (
-                  <option key={t.id} value={t.id}>{t.plate} - {t.brand} {t.model}</option>
+                  <option key={t.id} value={t.id}>{t.plate} - {t.brand} {t.model} ({t.fleetType === "INDUSTRIAL" ? "Industrial" : "Particular"})</option>
                 ))}
               </select>
+              {selectedTruck && (
+                <p className={`text-xs mt-1 font-medium ${selectedTruck.fleetType === "INDUSTRIAL" ? "text-orange-600" : "text-teal-600"}`}>
+                  {selectedTruck.fleetType === "INDUSTRIAL"
+                    ? `Industrial — ${selectedTruck.currentHours.toLocaleString("es-CL")} h actuales`
+                    : `Particular — ${selectedTruck.currentKm.toLocaleString("es-CL")} km actuales`}
+                </p>
+              )}
             </div>
             <Select name="type" label="Tipo de OT *" required>
               <option value="PREVENTIVO">Preventivo</option>
@@ -120,7 +132,14 @@ export default function NewWorkOrderPage() {
                 ))}
               </select>
             </div>
-            <Input name="kmAtCreate" label="Kilometraje al Crear *" type="number" placeholder="0" min="0" required />
+            <Input
+              name="kmAtCreate"
+              label={selectedTruck?.fleetType === "INDUSTRIAL" ? "Horas Motor al Crear" : "Kilometraje al Crear *"}
+              type="number"
+              placeholder={selectedTruck?.fleetType === "INDUSTRIAL" ? selectedTruck.currentHours.toString() : selectedTruck?.currentKm?.toString() || "0"}
+              min="0"
+              required={selectedTruck?.fleetType !== "INDUSTRIAL"}
+            />
             <Input name="scheduledAt" label="Fecha Programada" type="datetime-local" />
             <Input name="laborHours" label="Horas de Labor" type="number" step="0.5" placeholder="0" />
             <Input name="totalCost" label="Costo Total (CLP)" type="number" placeholder="0" />

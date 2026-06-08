@@ -126,6 +126,17 @@ export default async function MaintenancePage({ searchParams }: PageProps) {
         <div className="text-center py-16 text-slate-500">
           <Wrench className="h-12 w-12 mx-auto mb-3 opacity-30" />
           <p className="text-lg font-medium">Sin órdenes de trabajo</p>
+          <p className="text-sm mb-4">
+            {searchParams.status || searchParams.type || searchParams.truckId
+              ? "No hay resultados para los filtros seleccionados"
+              : "Crea la primera orden de trabajo para comenzar"}
+          </p>
+          {!searchParams.status && !searchParams.type && !searchParams.truckId && (
+            <Link href="/maintenance/new" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors">
+              <Plus className="h-4 w-4" />
+              Nueva OT
+            </Link>
+          )}
         </div>
       ) : (
         <Card>

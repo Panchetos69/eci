@@ -7,6 +7,10 @@ import { Fuel, Plus, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import Link from "next/link";
 import { startOfMonth, endOfMonth, subMonths } from "date-fns";
 
+type FuelLogWithTruck = Awaited<ReturnType<typeof prisma.fuelLog.findMany>>[0] & {
+  truck: { plate: string; brand: string; model: string; internalId: string; fleetType: string };
+};
+
 export default async function FuelPage() {
   const session = await getServerSession(authOptions);
   const orgId = (session?.user as any)?.orgId;
@@ -19,7 +23,7 @@ export default async function FuelPage() {
   const [allLogs, trucksWithFuel] = await Promise.all([
     prisma.fuelLog.findMany({
       where: { orgId },
-      include: { truck: { select: { plate: true, brand: true, model: true, internalId: true } } },
+      include: { truck: { select: { plate: true, brand: true, model: true, internalId: true, fleetType: true } } },
       orderBy: { date: "desc" },
     }),
     prisma.truck.findMany({
@@ -158,7 +162,7 @@ export default async function FuelPage() {
                 <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Litros</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Precio/L</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Total</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Km</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Km / Horas</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Ubicación</th>
               </tr>
             </thead>
@@ -174,7 +178,11 @@ export default async function FuelPage() {
                   <td className="px-4 py-3 text-right text-slate-700">{log.liters.toLocaleString("es-CL")} L</td>
                   <td className="px-4 py-3 text-right text-slate-600">{fmtCLP(log.pricePerLiter)}</td>
                   <td className="px-4 py-3 text-right font-medium text-slate-800">{fmtCLP(log.totalCost || log.liters * log.pricePerLiter)}</td>
-                  <td className="px-4 py-3 text-slate-600">{log.kmAtLoad.toLocaleString("es-CL")}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {(log as any).truck.fleetType === "INDUSTRIAL" && log.engineHours
+                      ? `${log.engineHours.toLocaleString("es-CL")} h`
+                      : `${log.kmAtLoad.toLocaleString("es-CL")} km`}
+                  </td>
                   <td className="px-4 py-3 text-slate-500">{log.location || "—"}</td>
                 </tr>
               ))}

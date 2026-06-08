@@ -33,8 +33,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Campos requeridos: internalId, plate, brand, model, year" }, { status: 400 });
     }
 
+    const fleetType = rest.fleetType === "PARTICULAR" ? "PARTICULAR" : "INDUSTRIAL";
     const currentKm = parseInt(rest.currentKm) || 0;
     const pmInterval = parseInt(rest.pmInterval) || 10000;
+    const currentHours = parseFloat(rest.currentHours) || 0;
+    const pmIntervalHours = parseFloat(rest.pmIntervalHours) || 500;
 
     const truck = await prisma.truck.create({
       data: {
@@ -50,9 +53,13 @@ export async function POST(req: NextRequest) {
         color: rest.color || null,
         status: rest.status || "ACTIVE",
         notes: rest.notes || null,
+        fleetType,
         currentKm,
         pmInterval,
-        nextPmKm: currentKm + pmInterval,
+        nextPmKm: fleetType === "PARTICULAR" ? (rest.nextPmKm ? parseInt(rest.nextPmKm) : currentKm + pmInterval) : currentKm + pmInterval,
+        currentHours,
+        pmIntervalHours,
+        nextPmHours: fleetType === "INDUSTRIAL" ? (rest.nextPmHours ? parseFloat(rest.nextPmHours) : currentHours + pmIntervalHours) : currentHours + pmIntervalHours,
         fuelEst: parseFloat(rest.fuelEst) || 30,
         driverName: rest.driverName || null,
         driverRut: rest.driverRut || null,

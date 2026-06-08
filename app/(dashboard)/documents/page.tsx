@@ -98,7 +98,7 @@ export default async function DocumentsPage() {
                         return (
                           <tr key={doc.id} className="hover:bg-slate-50">
                             <td className="px-4 py-3">
-                              <Link href={`/fleet/${doc.truckId}`} className="font-medium text-slate-800 hover:text-blue-600">
+                              <Link href={`/fleet/${doc.truckId}/documents`} className="font-medium text-slate-800 hover:text-blue-600">
                                 {doc.truck.plate}
                               </Link>
                               <br />
@@ -135,7 +135,10 @@ export default async function DocumentsPage() {
         <div className="text-center py-16 text-slate-400">
           <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
           <p className="text-lg font-medium">Sin documentos registrados</p>
-          <p className="text-sm">Los documentos aparecerán aquí cuando los registres en cada camión</p>
+          <p className="text-sm mb-4">Los documentos aparecerán aquí cuando los registres en cada camión</p>
+        <Link href="/fleet" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors">
+          Ir a la flota
+        </Link>
         </div>
       )}
     </div>
